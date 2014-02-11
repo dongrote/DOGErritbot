@@ -54,6 +54,7 @@ import sys
 import threading
 import time
 import yaml
+from doge import DogeMessage
 
 try:
     import daemon.pidlockfile
@@ -145,18 +146,21 @@ class Gerrit(threading.Thread):
         if 'jenkins' in data['author']['username']:
             for approval in data.get('approvals', []):
                 if (approval['type'] == 'Code-Review' and int(approval['value']) < 0):
-                    msg = '%s: %s failed you, nobody is going to review your GARBAGE' % (
-                        data['change']['uploader']['username'], data['author']['username'])
+                    msg = '%s: %s, %s' % (
+                        data['change']['uploader']['username'],
+                        data['author']['username'],
+                        str(DogeMessage(int(approval['value']))))
                     self.log.info('Compiled Message %s: %s' % (channel, msg))
                     self.ircbot.send(channel, msg)
                     return
             #we don't care about any other jenkins comments
             return
 
-        msg = '%s: %s commented: %s' % (
+        msg = '%s: %s commented: %s %s' % (
             data['change']['owner']['username'],
             data['author']['username'],
-            data['change']['url'])
+            data['change']['url'],
+            str(DogeMessage(0)))
 
         for approval in data.get('approvals', []):
             if (approval['type'] == 'VRIF' and approval['value'] == '-2'):
@@ -178,32 +182,35 @@ class Gerrit(threading.Thread):
                 sent_approval_message = True
 
             if (approval['type'] == 'Code-Review' and approval['value'] in ['-2','-1']):
-                msg = '%s; %s rejected your change. (%s)' % (
+                msg = '%s: %s rejected your change. (%s) %s' % (
                     data['change']['owner']['username'],
                     data['author']['username'],
-                    data['change']['url'])
+                    data['change']['url'],
+                    str(DogeMessage(int(approval['value']))))
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
                 sent_approval_message = True
 
             if (approval['type'] == 'Code-Review' and approval['value'] == '2'):
-                msg = '%s: %s approved your change (%s). ^.^' % (
+                msg = '%s: %s approved your change. (%s) %s' % (
                     data['change']['owner']['username'],
                     data['author']['username'],
-                    data['change']['url'])
+                    data['change']['url'],
+                    str(DogeMessage(int(approval['value']))))
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
                 sent_approval_message = True
 
         if not sent_approval_message:
-            self.log.info('Compiled Messagse %s: %s' % (channel, msg))
+            self.log.info('Compiled Message %s: %s' % (channel, msg))
             self.ircbot.send(channel, msg)
 
     def change_merged(self, channel, data):
-        msg = '%s: %s merged your change (%s). Here, have an internet! \o/' % (
+        msg = '%s: %s merged your change (%s). %s' % (
             data['change']['owner']['username'],
             data['submitter']['username'],
-            data['change']['url'])
+            data['change']['url'],
+            str(DogeMessage(1)))
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
