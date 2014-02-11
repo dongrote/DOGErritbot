@@ -133,67 +133,76 @@ class Gerrit(threading.Thread):
             time.sleep(1)
 
     def patchset_created(self, channel, data):
-        msg = '%s proposed %s: %s  %s' % (
-            data['patchSet']['uploader']['name'],
-            data['change']['project'],
-            data['change']['subject'],
+        msg = '%s: %s submitted a new patch: %s' % (
+            data['change']['owner']['username'],
+            data['patchSet']['uploader']['username'],
             data['change']['url'])
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
     def comment_added(self, channel, data):
-        msg = 'A comment has been added to a proposed change to %s: %s  %s' % (
-            data['change']['project'],
-            data['change']['subject'],
+        sent_approval_message = False
+        if 'jenkins' in data['author']['username']:
+            for approval in data.get('approvals', []):
+                if (approval['type'] == 'Code-Review' and int(approval['value']) < 0):
+                    msg = '%s: %s failed you, nobody is going to review your GARBAGE' % (
+                        data['change']['uploader']['username'], data['author']['username'])
+                    self.log.info('Compiled Message %s: %s' % (channel, msg))
+                    self.ircbot.send(channel, msg)
+                    return
+            #we don't care about any other jenkins comments
+            return
+
+        msg = '%s: %s commented: %s' % (
+            data['change']['owner']['username'],
+            data['author']['username'],
             data['change']['url'])
-        self.log.info('Compiled Message %s: %s' % (channel, msg))
-        self.ircbot.send(channel, msg)
 
         for approval in data.get('approvals', []):
-            if (approval['type'] == 'VRIF' and approval['value'] == '-2'
-                and channel in self.channel_config.events.get(
-                    'x-vrif-minus-2', set())):
+            if (approval['type'] == 'VRIF' and approval['value'] == '-2'):
                 msg = 'Verification of a change to %s failed: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
+                sent_approval_message = True
 
-            if (approval['type'] == 'VRIF' and approval['value'] == '2'
-                and channel in self.channel_config.events.get(
-                    'x-vrif-plus-2', set())):
+            if (approval['type'] == 'VRIF' and approval['value'] == '2'):
                 msg = 'Verification of a change to %s succeeded: %s  %s' % (
                     data['change']['project'],
                     data['change']['subject'],
                     data['change']['url'])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
+                sent_approval_message = True
 
-            if (approval['type'] == 'CRVW' and approval['value'] == '-2'
-                and channel in self.channel_config.events.get(
-                    'x-crvw-minus-2', set())):
-                msg = 'A change to %s has been rejected: %s  %s' % (
-                    data['change']['project'],
-                    data['change']['subject'],
+            if (approval['type'] == 'Code-Review' and approval['value'] in ['-2','-1']):
+                msg = '%s; %s rejected your change. (%s)' % (
+                    data['change']['owner']['username'],
+                    data['author']['username'],
                     data['change']['url'])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
+                sent_approval_message = True
 
-            if (approval['type'] == 'CRVW' and approval['value'] == '2'
-                and channel in self.channel_config.events.get(
-                    'x-crvw-plus-2', set())):
-                msg = 'A change to %s has been approved: %s  %s' % (
-                    data['change']['project'],
-                    data['change']['subject'],
+            if (approval['type'] == 'Code-Review' and approval['value'] == '2'):
+                msg = '%s: %s approved your change (%s). ^.^' % (
+                    data['change']['owner']['username'],
+                    data['author']['username'],
                     data['change']['url'])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
+                sent_approval_message = True
+
+        if not sent_approval_message:
+            self.log.info('Compiled Messagse %s: %s' % (channel, msg))
+            self.ircbot.send(channel, msg)
 
     def change_merged(self, channel, data):
-        msg = 'Merged %s: %s  %s' % (
-            data['change']['project'],
-            data['change']['subject'],
+        msg = '%s: %s merged your change (%s). Here, have an internet! \o/' % (
+            data['change']['owner']['username'],
+            data['submitter']['username'],
             data['change']['url'])
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
@@ -311,6 +320,9 @@ def setup_logging(config):
         if not os.path.exists(fp):
             raise Exception("Unable to read logging config file at %s" % fp)
         logging.config.fileConfig(fp)
+    elif config.has_option('ircbot', 'log_file'):
+        log_file = config.get('ircbot', 'log_file')
+        logging.basicConfig(level=logging.DEBUG, filename=log_file)
     else:
         logging.basicConfig(level=logging.DEBUG)
 
