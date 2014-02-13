@@ -37,11 +37,13 @@ doge_negative = [
 
 
 class DogeMessage(object):
-    def __init__(self, polarity=0):
-        """ polarity is either a positive or negative value """
-        self.polarity = polarity
+    def __init__(self, prefixes=[], positive=[], neutral=[], negative=[]):
+        self.prefixes = prefixes
+        self.positive = positive
+        self.neutral = neutral
+        self.negative = negative
 
-    def __str__(self):
+    def __getitem__(self, polarity):
         if self.polarity > 0:
             return random.choice(doge_prefixes) + random.choice(doge_positive)
         if self.polarity < 0:

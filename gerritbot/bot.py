@@ -30,6 +30,12 @@ user=gerrit2
 key=/path/to/id_rsa
 host=review.example.com
 port=29418
+
+[doge]
+prefix=SO,VERY,MUCH,VERY MUCH,SUCH
+positive=+2,SUCCESS,WIN
+neutral=COMMENT
+negative=FAIL
 """
 
 # The yaml channel config should look like:
@@ -106,10 +112,11 @@ class GerritBot(irc.bot.SingleServerIRCBot):
 
 
 class Gerrit(threading.Thread):
-    def __init__(self, ircbot, channel_config, server,
+    def __init__(self, ircbot, doge, channel_config, server,
                  username, port=29418, keyfile=None):
         super(Gerrit, self).__init__()
         self.ircbot = ircbot
+        self.doge = doge
         self.channel_config = channel_config
         self.log = logging.getLogger('gerritbot')
         self.server = server
@@ -149,7 +156,7 @@ class Gerrit(threading.Thread):
                     msg = '%s: %s, %s' % (
                         data['change']['uploader']['username'],
                         data['author']['username'],
-                        str(DogeMessage(int(approval['value']))))
+                        self.doge[int(approval['value'])])
                     self.log.info('Compiled Message %s: %s' % (channel, msg))
                     self.ircbot.send(channel, msg)
                     return
@@ -160,7 +167,7 @@ class Gerrit(threading.Thread):
             data['change']['owner']['username'],
             data['author']['username'],
             data['change']['url'],
-            str(DogeMessage(0)))
+            self.doge[0])
 
         for approval in data.get('approvals', []):
             if (approval['type'] == 'VRIF' and approval['value'] == '-2'):
@@ -186,7 +193,7 @@ class Gerrit(threading.Thread):
                     data['change']['owner']['username'],
                     data['author']['username'],
                     data['change']['url'],
-                    str(DogeMessage(int(approval['value']))))
+                    self.doge[int(approval['value'])])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
                 sent_approval_message = True
@@ -196,7 +203,7 @@ class Gerrit(threading.Thread):
                     data['change']['owner']['username'],
                     data['author']['username'],
                     data['change']['url'],
-                    str(DogeMessage(int(approval['value']))))
+                    self.doge[int(approval['value'])])
                 self.log.info('Compiled Message %s: %s' % (channel, msg))
                 self.ircbot.send(channel, msg)
                 sent_approval_message = True
@@ -210,7 +217,7 @@ class Gerrit(threading.Thread):
             data['change']['owner']['username'],
             data['submitter']['username'],
             data['change']['url'],
-            str(DogeMessage(1)))
+            self.doge[1])
         self.log.info('Compiled Message %s: %s' % (channel, msg))
         self.ircbot.send(channel, msg)
 
@@ -293,13 +300,20 @@ def _main():
 
     channel_config = ChannelConfig(yaml.load(open(fp)))
 
-    bot = GerritBot(channel_config.channels,
+    doge = DogeMessage(config.get('doge', 'prefix').upper().split(','),
+                       config.get('doge', 'positive').upper().split(','),
+                       config.get('doge', 'neutral').upper().split(','),
+                       config.get('doge', 'negative').upper().split(','))
+
+    bot = GerritBot(doge,
+                    channel_config.channels,
                     config.get('ircbot', 'nick'),
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
                     config.getint('ircbot', 'port'),
                     config.get('ircbot', 'server_password'))
     g = Gerrit(bot,
+               doge,
                channel_config,
                config.get('gerrit', 'host'),
                config.get('gerrit', 'user'),
