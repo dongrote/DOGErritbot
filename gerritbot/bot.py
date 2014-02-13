@@ -305,8 +305,7 @@ def _main():
                        config.get('doge', 'neutral').upper().split(','),
                        config.get('doge', 'negative').upper().split(','))
 
-    bot = GerritBot(doge,
-                    channel_config.channels,
+    bot = GerritBot(channel_config.channels,
                     config.get('ircbot', 'nick'),
                     config.get('ircbot', 'pass'),
                     config.get('ircbot', 'server'),
