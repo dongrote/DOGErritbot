@@ -45,7 +45,7 @@ class DogeMessage(object):
 
     def __getitem__(self, polarity):
         if self.polarity > 0:
-            return random.choice(doge_prefixes) + random.choice(doge_positive)
+            return random.choice(self.prefixes) + random.choice(self.positive)
         if self.polarity < 0:
-            return random.choice(doge_prefixes) + random.choice(doge_negative)
-        return random.choice(doge_prefixes) + random.choice(doge_neutral)
+            return random.choice(self.prefixes) + random.choice(self.negative)
+        return random.choice(self.prefixes) + random.choice(self.neutral)
