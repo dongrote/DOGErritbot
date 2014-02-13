@@ -9,8 +9,8 @@ class DogeMessage(object):
         self.negative = negative
 
     def __getitem__(self, polarity):
-        if self.polarity > 0:
+        if polarity > 0:
             return random.choice(self.prefixes) + random.choice(self.positive)
-        if self.polarity < 0:
+        if polarity < 0:
             return random.choice(self.prefixes) + random.choice(self.negative)
         return random.choice(self.prefixes) + random.choice(self.neutral)
